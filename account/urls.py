@@ -7,7 +7,8 @@ from .views import (
     # Create User
     CreateRelation,
     UserContactsList,
-    DependantView,
+    # DependantView,
+    DependantsListView,
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -20,7 +21,7 @@ urlpatterns = [
     # path('user-login-otp/', ValidateLoginOTP.as_view(), name='user-login-otp'),
     path('create-relation/', CreateRelation.as_view(), name='create-relation'),
     path('my-contacts/', UserContactsList.as_view(), name='my-contacts'),
-    path('my-dependants/', DependantView.as_view(), name='my-dependants'),
+    path('my-dependants/', DependantsListView.as_view(), name='my-dependants'), #trials
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
 ]

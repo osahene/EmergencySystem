@@ -146,21 +146,40 @@ class UpdateSubscriptionView(APIView):
             {"message": f"Subscription updated to {new_subscription.capitalize()}."},
             status=status.HTTP_200_OK
         )
-        
-class DependantView(APIView):
+ 
+
+class DependantsListView(APIView):
+    
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
-        user = request.user
-        dependantList = Contacts.objects.filter(contact_user=user).select_related('created_by')
+        user_phone_number = request.query_params.get('phone_number', None)
         
-        response_data = [
-            {
-               'added_by': contact.created_by.get_full_name,
-               'relation': contact.relation,
-               'status': contact.status, 
+        
+        if not user_phone_number:
+            return Response({"error" : "invalid request"}, status=status.HTTP_403_FORBIDDEN)
+        
+        contacts = Contacts.objects.filter(phone_number=user_phone_number)
+        
+        if not contacts.exists():
+            return Response({'message': 'No contacts found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        contacts_data = []
+        
+        for contact in contacts:
+            contact_info = {
+                'created_by': {
+                    'first_name': contact.created_by.first_name,
+                    'last_name': contact.created_by.last_name,
+                    'email': contact.created_by.email,
+                    'phone_number': contact.created_by.phone_number 
+                },
+                'relation': contact.relation,
+                'status': contact.status,
             }
-            for contact in dependantList
-        ]
+            contacts_data.append(contact_info)
         
-        return Response(response_data, status=status.HTTP_200_OK)
+        print(contacts_data)   
+        if len(contacts_data) < 1:
+            return None
+        return Response({'dependant_list': contacts_data}, status=status.HTTP_200_OK)

@@ -96,3 +96,20 @@ class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contacts
         fields = ['first_name', 'last_name', 'email_address', 'phone_number', 'relation', 'status']
+        
+class ContactDependantSerializer(serializers.ModelSerializer):
+    created_by_first_name = serializers.CharField(source='created_by.first_name')
+    created_by_last_name = serializers.CharField(source='created_by.last_name')
+    created_by_email = serializers.CharField(source='created_by.email')
+    created_by_phone_number = serializers.CharField(source='created_by.phone_number')
+    
+    class Meta:
+        model = Contacts
+        fields = [
+            'created_by_first_name', 
+            'created_by_last_name', 
+            'created_by_email',
+            'created_by_phone_number',
+            'relation', 
+            'status'
+            ]
