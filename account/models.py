@@ -157,7 +157,8 @@ class Contacts(models.Model):
         return f"{self.first_name} {self.last_name}" 
 
     def get_absolute_url(self):
-        return reverse('contact-detail', kwargs={'pk': self.pk})      
+        return reverse('contact-detail', kwargs={'pk': self.pk})   
+       
 class Institution(AbstractUserProfile):
     SERVICE_TYPE = [('police', 'Police'), ('fire', 'Fire'), ('nadmo', 'MADMO'), ('ecg', 'ECG')]
     institution_name = models.CharField(max_length=255)

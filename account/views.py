@@ -1,5 +1,7 @@
-from .serializers import RegisterSerializer, LoginSerializer, ContactSerializer
+from .serializers import RegisterSerializer, LoginSerializer, ContactSerializer, ContactStatusSerializer
 from django.utils.decorators import method_decorator
+# from rest_framework.decorators import api_view, permission_classes
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
@@ -82,7 +84,6 @@ class CreateRelation(APIView):
     permission_classes = [IsAuthenticated]
     def post(self, request):
         user = request.user
-        print('sub',user)
         subscription_limits ={
             'free': 5,
             'pro': 10,
@@ -147,14 +148,13 @@ class UpdateSubscriptionView(APIView):
             status=status.HTTP_200_OK
         )
  
-
+# @method_decorator(ensure_csrf_cookie, name='dispatch')
 class DependantsListView(APIView):
     
     permission_classes = [IsAuthenticated]
-    
+
     def get(self, request):
         user_phone_number = request.query_params.get('phone_number', None)
-        
         
         if not user_phone_number:
             return Response({"error" : "invalid request"}, status=status.HTTP_403_FORBIDDEN)
@@ -174,12 +174,39 @@ class DependantsListView(APIView):
                     'email': contact.created_by.email,
                     'phone_number': contact.created_by.phone_number 
                 },
+                'id': contact.pk,
                 'relation': contact.relation,
                 'status': contact.status,
             }
             contacts_data.append(contact_info)
-        
-        print(contacts_data)   
+           
         if len(contacts_data) < 1:
             return None
         return Response({'dependant_list': contacts_data}, status=status.HTTP_200_OK)
+    
+
+class ApproveDependantView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        key = request.data
+        try:
+            contact = Contacts.objects.get(pk=key)
+            contact.status = 'approved'
+            contact.save()
+            return Response({"message": "Contact approved"}, status=status.HTTP_200_OK)
+        except Contacts.DoesNotExist:
+            return Response({"error": "Contact not found"}, status=status.HTTP_404_NOT_FOUND)
+
+class RejectDependantView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        key = request.data
+        try:
+            contact = Contacts.objects.get(pk=key)
+            contact.status = 'rejected'
+            contact.save()
+            return Response({"message": "Contact rejected"}, status=status.HTTP_200_OK)
+        except Contacts.DoesNotExist:
+            return Response({"error": "Contact not found"}, status=status.HTTP_404_NOT_FOUND)

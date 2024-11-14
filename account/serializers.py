@@ -22,7 +22,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         
     def validate_email(self, value):
         """Check if email is already registered"""
-        print('val', value)
         if Users.objects.filter(email=value).exists():
             raise ValidationError("A user with this email already exists.")
         elif Users.objects.filter(phone_number=value).exists():
@@ -38,7 +37,7 @@ class LoginSerializer(serializers.ModelSerializer):
         max_length=255, write_only=True
     )
     password = serializers.CharField(write_only=True)  # Access company name from related field
-    # phone_number = serializers.CharField(read_only=True)  # Access company name from related field
+    phone_number = serializers.CharField(read_only=True)  # Access company name from related field
     first_name = serializers.CharField(read_only=True)
     last_name = serializers.CharField(read_only=True)
     tokens = serializers.SerializerMethodField()
@@ -47,7 +46,7 @@ class LoginSerializer(serializers.ModelSerializer):
         model = Users
         fields = [
             'email', 'password', 
-            # 'phone_number', 
+            'phone_number', 
             'tokens', 'first_name', 'last_name'
             ]
     def get_tokens(self, obj):
@@ -62,7 +61,6 @@ class LoginSerializer(serializers.ModelSerializer):
         email = attrs.get('email', '')
         password = attrs.get('password', '')
         if '@' in email:
-            print('here')
             validator = EmailValidator(message='Enter a valid email address')
             try:
                 validator(email)
@@ -113,3 +111,15 @@ class ContactDependantSerializer(serializers.ModelSerializer):
             'relation', 
             'status'
             ]
+        
+class ContactStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contacts
+        fields = ['id', 'status']
+        read_only_fields = ['id']
+
+    def update(self, instance, validated_data):
+        # Update the status of the contact
+        instance.status = validated_data.get('status', instance.status)
+        instance.save()
+        return instance
