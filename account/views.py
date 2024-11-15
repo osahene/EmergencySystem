@@ -1,15 +1,15 @@
 from .serializers import RegisterSerializer, LoginSerializer, ContactSerializer, ContactStatusSerializer
-from django.utils.decorators import method_decorator
-# from rest_framework.decorators import api_view, permission_classes
-from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
 from django_ratelimit.decorators import ratelimit
 from rest_framework import status
+from django.core.mail import send_mail
+from django.conf import settings
+from geopy.geocoders import Nominatim
 from rest_framework.permissions import IsAuthenticated
-from .models import OTP, Users, Contacts
+from .models import OTP, Users, Contacts, Emergency
 
 
 
@@ -234,4 +234,98 @@ class UpdateContactView(APIView):
             return Response({'message': 'Contact updated successfully'}, status=status.HTTP_200_OK)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+class EmergencyActionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        location = request.data.get('location')  # Location coordinates (latitude, longitude)
+        action = request.data.get('action_type')
+
+        # Ensure necessary fields are provided
+        if not location or not action:
+            return Response(
+                {"error": "Location and action_type are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Decode the location coordinates using OpenStreetMap (Geopy or OpenStreet API)
+        try:
+            geolocator = Nominatim(user_agent="emergency_action_service")
+            location_info = geolocator.reverse(location, exactly_one=True).raw['address']
+
+            country = location_info.get('country', '')
+            region = location_info.get('state', '')
+            city = location_info.get('city', '')
+            town = location_info.get('town', '')
+            locality = location_info.get('suburb', '')
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to decode location: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Fetch contacts related to the user
+        contacts = Contacts.objects.filter(created_by=user, status='approved')
+        if not contacts.exists():
+            return Response(
+                {"error": "No approved contacts found for this user."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Prepare and broadcast notifications for a fire action
+        if action.lower() == "fire":
+            for contact in contacts:
+                # Prepare message details
+                subject = "Fire Alert"
+                message = (
+                    f"Hello {contact.first_name} {contact.last_name},\n\n"
+                    f"Your dependent, {user.get_full_name}, has triggered an emergency fire alert. "
+                    f"They are at {locality}, {town}, {city}, {region}, {country}.\n\n"
+                    f"Get it live here:\n"
+                    f"https://www.openstreetmap.org/?mlat={location.split(',')[0]}&mlon={location.split(',')[1]}&zoom=15\n\n"
+                    "Please respond as soon as possible.\n\nThank you."
+                )
+
+                # Send SMS (pseudo code for integration with SMS service)
+                try:
+                    send_sms(contact.phone_number, message)
+                except Exception as e:
+                    print(f"Failed to send SMS to {contact.phone_number}: {str(e)}")
+
+                # Send Email
+                try:
+                    send_mail(
+                        subject,
+                        message,
+                        settings.DEFAULT_FROM_EMAIL,
+                        [contact.email_address],
+                        fail_silently=False,
+                    )
+                except Exception as e:
+                    print(f"Failed to send email to {contact.email_address}: {str(e)}")
+
+        # Save emergency action to the database
+        try:
+            Emergency.objects.create(
+                created_by=user,
+                action=action,
+                location={"latitude": location.split(',')[0], "longitude": location.split(',')[1]},
+                country=country,
+                region=region,
+                city=city,
+                town=town,
+                locality=locality,
+                mission_status="success",
+            )
+            return Response({"message": "Emergency action successfully logged."}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to log emergency action: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+   
+        
+        

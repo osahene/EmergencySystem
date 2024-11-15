@@ -158,7 +158,21 @@ class Contacts(models.Model):
 
     def get_absolute_url(self):
         return reverse('contact-detail', kwargs={'pk': self.pk})   
-       
+
+class Emergency(models.Model):
+    MISSION = [('success', 'Success'), ('failed', 'Failed')]
+    
+    created_by = models.ForeignKey(Users, related_name='emergency', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    action = models.CharField(max_length=10)
+    location = models.JSONField()
+    country = models.CharField(max_length=100)
+    region = models.CharField(max_length=100)
+    city = models.CharField(max_length=100)
+    town = models.CharField(max_length=100)
+    locality = models.CharField(max_length=100)
+    mission_status = models.CharField(max_length=20, choices=MISSION, default='')
+
 class Institution(AbstractUserProfile):
     SERVICE_TYPE = [('police', 'Police'), ('fire', 'Fire'), ('nadmo', 'MADMO'), ('ecg', 'ECG')]
     institution_name = models.CharField(max_length=255)
