@@ -2,6 +2,7 @@ from .serializers import RegisterSerializer, LoginSerializer, ContactSerializer,
 from django.utils.decorators import method_decorator
 # from rest_framework.decorators import api_view, permission_classes
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView
@@ -181,7 +182,7 @@ class DependantsListView(APIView):
             contacts_data.append(contact_info)
            
         if len(contacts_data) < 1:
-            return None
+            return Response({'message': 'No contacts found'}, status=status.HTTP_200_OK)
         return Response({'dependant_list': contacts_data}, status=status.HTTP_200_OK)
     
 
@@ -210,3 +211,27 @@ class RejectDependantView(APIView):
             return Response({"message": "Contact rejected"}, status=status.HTTP_200_OK)
         except Contacts.DoesNotExist:
             return Response({"error": "Contact not found"}, status=status.HTTP_404_NOT_FOUND)
+
+class DeleteContactView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        print('del', request.data)
+        contact = get_object_or_404(Contacts, pk=request.data.get('pk'), created_by=request.user)
+        contact.delete()
+        return Response({'message': 'Contact deleted successfully'}, status=status.HTTP_200_OK)
+    
+class UpdateContactView(APIView):
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        contact = get_object_or_404(Contacts, pk=request.data.get('pk'), created_by=request.user)
+        serializer = ContactSerializer(contact, data=request.data)
+        print('data',request.data)
+        print('ser',serializer)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message': 'Contact updated successfully'}, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    

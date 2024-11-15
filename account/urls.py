@@ -12,6 +12,8 @@ from .views import (
     ApproveDependantView,
     # approve_dependant,
     RejectDependantView,
+    DeleteContactView,
+    UpdateContactView,
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -28,6 +30,8 @@ urlpatterns = [
     # path('approve-dependent/<int:pk>/', approve_dependant, name='approve-dependent'),
     path('approve-dependent/', ApproveDependantView.as_view(), name='approve-dependent'),
     path('reject-dependent/', RejectDependantView.as_view(), name='reject-dependent'),
+    path('delete-contact/', DeleteContactView.as_view(), name='delete-contact'),
+    path('update-contact/', UpdateContactView.as_view(), name='update-contact'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
 ]

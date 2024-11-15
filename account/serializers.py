@@ -93,7 +93,7 @@ class LoginSerializer(serializers.ModelSerializer):
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contacts
-        fields = ['first_name', 'last_name', 'email_address', 'phone_number', 'relation', 'status']
+        fields = ['pk', 'first_name', 'last_name', 'email_address', 'phone_number', 'relation', 'status']
         
 class ContactDependantSerializer(serializers.ModelSerializer):
     created_by_first_name = serializers.CharField(source='created_by.first_name')
