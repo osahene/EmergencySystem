@@ -99,6 +99,11 @@ class AbstractUserProfile(AbstractBaseUser, PermissionsMixin):
             return self.users.subscription_level
         return None
     
+    def get_fullname(self):
+        if hasattr(self, 'users'):
+            return f"{self.users.first_name} {self.users.last_name}"
+        return None
+    
 class Users(AbstractUserProfile):
     SUBSCRIPTION_CHOICES = [
         ('free', 'Free'),

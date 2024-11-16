@@ -1,3 +1,5 @@
+import requests
+import json
 from .serializers import RegisterSerializer, LoginSerializer, ContactSerializer, ContactStatusSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
@@ -239,9 +241,10 @@ class EmergencyActionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = request.user
+        user = Users.objects.get(email=request.user) 
         location = request.data.get('location')  # Location coordinates (latitude, longitude)
-        action = request.data.get('action_type')
+        action = request.data.get('alertType')
+        
 
         # Ensure necessary fields are provided
         if not location or not action:
@@ -253,13 +256,14 @@ class EmergencyActionView(APIView):
         # Decode the location coordinates using OpenStreetMap (Geopy or OpenStreet API)
         try:
             geolocator = Nominatim(user_agent="emergency_action_service")
-            location_info = geolocator.reverse(location, exactly_one=True).raw['address']
+            location_info = geolocator.reverse(query=(location['latitude'], location['longitude']), exactly_one=True).raw['address']
 
             country = location_info.get('country', '')
             region = location_info.get('state', '')
             city = location_info.get('city', '')
             town = location_info.get('town', '')
             locality = location_info.get('suburb', '')
+            
         except Exception as e:
             return Response(
                 {"error": f"Failed to decode location: {str(e)}"},
@@ -275,43 +279,52 @@ class EmergencyActionView(APIView):
             )
 
         # Prepare and broadcast notifications for a fire action
-        if action.lower() == "fire":
-            for contact in contacts:
-                # Prepare message details
-                subject = "Fire Alert"
-                message = (
-                    f"Hello {contact.first_name} {contact.last_name},\n\n"
-                    f"Your dependent, {user.get_full_name}, has triggered an emergency fire alert. "
-                    f"They are at {locality}, {town}, {city}, {region}, {country}.\n\n"
-                    f"Get it live here:\n"
-                    f"https://www.openstreetmap.org/?mlat={location.split(',')[0]}&mlon={location.split(',')[1]}&zoom=15\n\n"
-                    "Please respond as soon as possible.\n\nThank you."
-                )
+        
+        for contact in contacts:
+            # Prepare message details
+            subject = f"{action} Alert"
+            message = (
+                f"{action} Alert,\n\n"
+                f"Hello {contact.first_name} {contact.last_name},\n\n"
+                f"Your {(contact.relation).lower()}, {user.get_fullname()} has triggered an emergency {(action).lower()} alert. "
+                f"They are at {locality}, {town}, {city}, {region}, {country}.\n\n"
+                f"Get it live here:\n"
+                f"https://www.openstreetmap.org/?mlat={location['latitude']}&mlon={location['longitude']}&zoom=15\n\n"
+                "Please respond as soon as possible.\n\nThank you."
+            )
 
-                # Send SMS (pseudo code for integration with SMS service)
-                try:
-                    send_sms(contact.phone_number, message)
-                except Exception as e:
-                    print(f"Failed to send SMS to {contact.phone_number}: {str(e)}")
+            # Send SMS (pseudo code for integration with SMS service)
+            try:
+                post_data= {'recipient':contact.phone_number, 'message': message}
+                headers = {
+                'Content-Type': 'application/json',
+                'API-KEY': settings.WIGAL_KEY,
+                'USERNAME': 'osaheneBlackmore'
+                }
+                response = requests.post('https://frogapi.wigal.com.gh/api/v3/sms/send', headers=headers, data=json.dumps(post_data))
+                print(response.json())
+                
+            except Exception as e:
+                print(f"Failed to send SMS to {contact.phone_number}: {str(e)}")
 
-                # Send Email
-                try:
-                    send_mail(
-                        subject,
-                        message,
-                        settings.DEFAULT_FROM_EMAIL,
-                        [contact.email_address],
-                        fail_silently=False,
-                    )
-                except Exception as e:
-                    print(f"Failed to send email to {contact.email_address}: {str(e)}")
+            # Send Email
+            # try:
+            #     send_mail(
+            #         subject,
+            #         message,
+            #         settings.DEFAULT_FROM_EMAIL,
+            #         [contact.email_address],
+            #         fail_silently=False,
+            #     )
+            # except Exception as e:
+            #     print(f"Failed to send email to {contact.email_address}: {str(e)}")
 
         # Save emergency action to the database
         try:
             Emergency.objects.create(
-                created_by=user,
+                created_by=Users.objects.get(email=request.user),
                 action=action,
-                location={"latitude": location.split(',')[0], "longitude": location.split(',')[1]},
+                location={"latitude": location['latitude'], "longitude": location['longitude']},
                 country=country,
                 region=region,
                 city=city,

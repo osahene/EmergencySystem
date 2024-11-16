@@ -215,7 +215,7 @@ TWILIO_AUTH_TOKEN = os.environ.get("TWILIO_AUTH")
 TWILIO_PHONE_NUMBER = os.environ.get("TWILIO_PHONE")
 TWILIO_CHANNEL = os.environ.get("TWILIO_CHANNEL")
 TWILIO_SERVICES = os.environ.get("TWILIO_SERVICES")
-
+WIGAL_KEY = os.environ.get("API_KEY")
 
 OTP_EXPIRATION_TIME = 300
 

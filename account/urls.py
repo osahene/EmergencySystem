@@ -14,6 +14,8 @@ from .views import (
     RejectDependantView,
     DeleteContactView,
     UpdateContactView,
+    # Trigger Emergency
+    EmergencyActionView
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -32,6 +34,9 @@ urlpatterns = [
     path('reject-dependent/', RejectDependantView.as_view(), name='reject-dependent'),
     path('delete-contact/', DeleteContactView.as_view(), name='delete-contact'),
     path('update-contact/', UpdateContactView.as_view(), name='update-contact'),
+    # Trigger Alerts
+    path('trigger-alert/', EmergencyActionView.as_view(), name='trigger-alert'),
+    # Token refreshes
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
 ]
