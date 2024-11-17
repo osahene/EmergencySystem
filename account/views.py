@@ -301,6 +301,7 @@ class EmergencyActionView(APIView):
                 'API-KEY': settings.WIGAL_KEY,
                 'USERNAME': 'osaheneBlackmore'
                 }
+                print('post', post_data)
                 response = requests.post('https://frogapi.wigal.com.gh/api/v3/sms/send', headers=headers, data=json.dumps(post_data))
                 print(response.json())
                 
@@ -308,16 +309,16 @@ class EmergencyActionView(APIView):
                 print(f"Failed to send SMS to {contact.phone_number}: {str(e)}")
 
             # Send Email
-            # try:
-            #     send_mail(
-            #         subject,
-            #         message,
-            #         settings.DEFAULT_FROM_EMAIL,
-            #         [contact.email_address],
-            #         fail_silently=False,
-            #     )
-            # except Exception as e:
-            #     print(f"Failed to send email to {contact.email_address}: {str(e)}")
+            try:
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [contact.email_address],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                print(f"Failed to send email to {contact.email_address}: {str(e)}")
 
         # Save emergency action to the database
         try:
@@ -339,6 +340,138 @@ class EmergencyActionView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
-   
+class USSDHandlerView(APIView):
+    def post(self, request):
+        session_id = request.data.get("sessionId")
+        phone_number = request.data.get("phoneNumber")
+        text = request.data.get("text", "")  # User's input
         
+        # Parse text to determine USSD menu navigation
+        inputs = text.split("*")
+        user = Users.objects.filter(phone_number=phone_number).first()
         
+        if text == "":
+            # Initial menu
+            response = "Welcome to the Emergency Service\n"
+            response += "1. Register\n"
+            response += "2. Trigger Emergency Alert\n"
+            response += "3. View Registered Contacts"
+        
+        elif inputs[0] == "1":
+            # Registration flow
+            if len(inputs) == 1:
+                response = "CON Enter your first name:"
+            elif len(inputs) == 2:
+                response = "CON Enter your last name:"
+            elif len(inputs) == 3:
+                response = "CON Enter your email address:"
+            elif len(inputs) == 4:
+                # Save user registration
+                first_name, last_name, email = inputs[1], inputs[2], inputs[3]
+                user, created = Users.objects.get_or_create(
+                    phone_number=phone_number,
+                    defaults={"first_name": first_name, "last_name": last_name, "email": email}
+                )
+                if created:
+                    response = "END Registration successful!"
+                else:
+                    response = "END You are already registered."
+        
+        elif inputs[0] == "2":
+            # Trigger Emergency Alert Flow
+            if len(inputs) == 1:
+                # Emergency type selection
+                response = "CON Select emergency type:\n"
+                response += "1. Fire Outbreak\n"
+                response += "2. Health Crisis\n"
+                response += "3. Robbery Attack\n"
+                response += "4. Violence Alert\n"
+                response += "5. Flood Alert\n"
+                response += "6. Call Emergency"
+            elif len(inputs) == 2:
+                # Prompt for location after emergency type selection
+                response = "CON Enter your location:"
+            elif len(inputs) == 3:
+                # Trigger emergency and notify contacts
+                try:
+                    action_type = {
+                        "1": "Fire Outbreak",
+                        "2": "Health Crisis",
+                        "3": "Robbery Attack",
+                        "4": "Violence Alert",
+                        "5": "Flood Alert",
+                        "6": "Call Emergency",
+                    }.get(inputs[1], "Unknown Emergency")
+                    
+                    location = inputs[2]
+                    
+                    # Notify contacts
+                    contacts = Contacts.objects.filter(created_by=user, status="approved")
+                    for contact in contacts:
+                        # Prepare message details
+                        message = (
+                            f"{action_type} Alert,\n\n"
+                            f"Hello {contact.first_name} {contact.last_name},\n\n"
+                            f"Your {(contact.relation).lower()}, {user.get_fullname()} has triggered an emergency {(action_type).lower()} alert. "
+                            f"They are at {location}.\n\n"
+                            "Please respond as soon as possible.\n\nThank you."
+                        )
+                        
+                        # Send SMS
+                        try:
+                            post_data = {"recipient": contact.phone_number, "message": message}
+                            headers = {
+                                "Content-Type": "application/json",
+                                "API-KEY": settings.WIGAL_KEY,
+                                "USERNAME": "osaheneBlackmore",
+                            }
+                            requests.post(
+                    
+                                "https://frogapi.wigal.com.gh/api/v3/sms/send",
+                                headers=headers,
+                                data=json.dumps(post_data),
+                            )
+                        except Exception as e:
+                            print(f"Failed to send SMS to {contact.phone_number}: {str(e)}")
+                        
+                        # Send Email
+                        try:
+                            send_mail(
+                                f"{action_type} Alert",
+                                message,
+                                settings.DEFAULT_FROM_EMAIL,
+                                [contact.email_address],
+                                fail_silently=False,
+                            )
+                        except Exception as e:
+                            print(f"Failed to send email to {contact.email_address}: {str(e)}")
+                    
+                    # Save emergency to the database
+                    Emergency.objects.create(
+                        created_by=user,
+                        action=action_type,
+                        location_context=location,
+                        usage_type="USSD",
+                        mission_status="success",
+                    )
+                    response = "END Emergency alert triggered successfully!"
+                except Exception as e:
+                    response = "END Failed to trigger emergency alert. Please try again."
+
+        elif inputs[0] == "3":
+            # View registered contacts
+            if len(inputs) == 1:
+                contacts = Contacts.objects.filter(created_by=user)
+                if contacts.exists():
+                    response = "CON Your contacts:\n"
+                    for i, contact in enumerate(contacts, 1):
+                        response += f"{i}. {contact.first_name} {contact.last_name} ({contact.status})\n"
+                else:
+                    response = "END No contacts found. Add contacts to your profile."
+            else:
+                response = "END Invalid option selected."
+
+        else:
+            response = "END Invalid option selected."
+        
+        return Response(response, status=status.HTTP_200_OK)

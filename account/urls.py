@@ -15,7 +15,9 @@ from .views import (
     DeleteContactView,
     UpdateContactView,
     # Trigger Emergency
-    EmergencyActionView
+    EmergencyActionView,
+    # USSD
+    USSDHandlerView
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -36,6 +38,8 @@ urlpatterns = [
     path('update-contact/', UpdateContactView.as_view(), name='update-contact'),
     # Trigger Alerts
     path('trigger-alert/', EmergencyActionView.as_view(), name='trigger-alert'),
+    # USSD
+    path("ussd/", USSDHandlerView.as_view(), name="ussd-handler"),
     # Token refreshes
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     
