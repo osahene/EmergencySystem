@@ -10,7 +10,7 @@ from rest_framework import status
 from django.core.mail import send_mail
 from django.conf import settings
 from geopy.geocoders import Nominatim
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import OTP, Users, Contacts, Emergency
 
 
@@ -121,8 +121,102 @@ class CreateRelation(APIView):
         createrela = Contacts.objects.create(**contact_data)     
         createrela.save()
         
+        message = (
+            f'From: Help OO Help,\n\n'
+            f'Subject: Emergency Alert Confirmation \n\n'
+            f"Dear {request.data.get('first_name')} {request.data.get('last_name')}, \n"
+            f"Your {(request.data.get('relation')).lower()}, {user.get_fullname()}, has nominated you, that you should \n"
+            f"be contacted in case of emergency.\n"
+            f"Kindly click on the link below to ACCEPT or REJECT the nomination.\n"
+            f"http://localhost:3000/accept/{createrela.id}"            
+        )
+        try:
+            
+            post_data= {'recipient':request.data.get('phone_number'), 'message': message}
+            headers = {
+            'Content-Type': 'application/json',
+            'API-KEY': settings.WIGAL_KEY,
+            'USERNAME': 'osaheneBlackmore'
+            }
+            print('post', post_data)
+            response = requests.post('https://frogapi.wigal.com.gh/api/v3/sms/send', headers=headers, data=json.dumps(post_data))
+            print(response.json())
+        except Exception as e:
+            print(f"Failed to send SMS to {contact_data['phone_number']}: {str(e)}")
+                
+        
         return Response('Contact created successfully', status=status.HTTP_201_CREATED)
-    
+class ContactDetails(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, contact_id):
+        try:
+            contact = Contacts.objects.get(id=contact_id)
+            return Response({
+                'contact_first_name': contact.first_name,
+                'contact_last_name': contact.last_name,
+                'sender_name': contact.created_by.get_fullname()
+            }, status=status.HTTP_200_OK)
+        except Contacts.DoesNotExist:
+            return Response({'error': 'Contact not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+class UpdateRelationStatus(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            contact_id = request.data.get('contact_id')
+            action = request.data.get('action')
+            
+            if not contact_id or not action:
+                return Response(
+                    {"error": "Both 'contact_id' and 'action' are required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if action not in ['approved', 'rejected']:
+                return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                contact = Contacts.objects.get(id=contact_id)
+                contact.status = action
+                contact.save()
+                
+                message = (
+                f"Dear {contact.first_name} {contact.last_name},\n\n"
+                f"You have successfully {'accepted' if action == 'approved' else 'rejected'} "
+                f"the nomination by {contact.created_by.get_full_name}.\n"
+            )
+                try:
+            
+                    post_data= {'recipient': contact.phone_number, 'message': message}
+                    headers = {
+                    'Content-Type': 'application/json',
+                    'API-KEY': settings.WIGAL_KEY,
+                    'USERNAME': 'osaheneBlackmore'
+                    }
+                    print('post', post_data)
+                    response = requests.post('https://frogapi.wigal.com.gh/api/v3/sms/send', headers=headers, data=json.dumps(post_data))
+                    print(response.json())
+                except Exception as e:
+                    print(f"Failed to send SMS to {contact.phone_number}: {str(e)}")
+
+                return Response(
+                    {"message": f"Status updated to {action} successfully"},
+                    status=status.HTTP_200_OK
+                )
+            except Contacts.DoesNotExist:
+                return Response(
+                    {"error": "Contact not found"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+           
+        except Contacts.DoesNotExist:
+            return Response({'error': 'Contact not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class UserContactsList(ListAPIView):
     permission_classes=[IsAuthenticated]
     serializer_class = ContactSerializer
@@ -151,7 +245,7 @@ class UpdateSubscriptionView(APIView):
             status=status.HTTP_200_OK
         )
  
-# @method_decorator(ensure_csrf_cookie, name='dispatch')
+ 
 class DependantsListView(APIView):
     
     permission_classes = [IsAuthenticated]
