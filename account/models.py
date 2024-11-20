@@ -1,3 +1,5 @@
+import requests
+import json
 from django.contrib.auth.models import (
     AbstractBaseUser, BaseUserManager, PermissionsMixin)
 from django.db import models
@@ -6,13 +8,13 @@ from django.utils import timezone
 import hashlib
 from django.core.validators import EmailValidator
 from django.conf import settings
-from twilio.rest import Client
 from django.core.cache import cache
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
 from rest_framework import status
 import random
 from django.urls import reverse
+from django.core.mail import send_mail
 
 OTP_EXPIRATION_TIME = 300  # 5 minutes
 MAX_OTP_ATTEMPTS = 3
@@ -264,41 +266,45 @@ class OTP(models.Model):
     @staticmethod
     def send_otp_email(email_address, message=None):
         otp_code = OTP.create_otp(email_address)
-        account_sid = settings.TWILIO_ACCOUNT_SID
-        auth_token = settings.TWILIO_AUTH_TOKEN
-        service_id = settings.TWILIO_SERVICES
-        client = Client(account_sid, auth_token)
         print('otp code', otp_code)
 
         try:
-            client.verify.v2.services(service_id).verifications.create(
-                to=email_address,
-                channel="sms",
-                custom_friendly_name="TeenByte Tech Lab",
-                custom_message=f"{message} {otp_code}"
-            )
+            send_mail(
+                subject="Email Verification OTP", 
+                message=f"This is your email verification OTP{otp_code}",
+                recipient_list=email_address,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                fail_silently=False
+                )
             return Response({'message': 'OTP has been sent to your email'}, status=status.HTTP_200_OK)
         except Exception as e:
             print(f"Error sending SMS: {e}")
             return Response({'message': 'Error sending OTP'}, status=status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
-    def send_sms(phone_number, message=None):
+    def send_sms(phone_number):
         otp_code = OTP.create_otp(phone_number)
-        account_sid = settings.TWILIO_ACCOUNT_SID
-        auth_token = settings.TWILIO_AUTH_TOKEN
-        service_id = settings.TWILIO_SERVICES
-        client = Client(account_sid, auth_token)
         print('otp code', otp_code)
+        post_data = {
+                    "senderid": settings.WIGAL_SENDER_ID,
+                    "destinations": [
+                        {
+                        "destination": phone_number,
+                        "msgid": "MGS10101"
+                        }
+                    ],
+                    "message": f"Your one-time password is: {otp_code}",
+                    "smstype": "text"
+                    }
 
         try:
-            client.verify.v2.services(service_id).verifications.create(
-                to=phone_number,
-                channel="sms",
-                custom_friendly_name="TeenByte Tech Lab",
-                custom_message=f"{message} {otp_code}"
-            )
-            return Response({'message': 'OTP has been sent to your phone'}, status=status.HTTP_200_OK)
+            response = requests.post(
+            'https://frogapi.wigal.com.gh/api/v3/sms/send',
+            headers=settings.HEADERS,
+            data=json.dumps(post_data)
+        )
+            return response.json()
+           
         except Exception as e:
             print(f"Error sending SMS: {e}")
             return Response({'message': 'Error sending OTP'}, status=status.HTTP_400_BAD_REQUEST)

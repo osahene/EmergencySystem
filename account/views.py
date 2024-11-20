@@ -12,7 +12,7 @@ from django.conf import settings
 from geopy.geocoders import Nominatim
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import OTP, Users, Contacts, Emergency
-
+from .tasks import send_sms_task, send_email_task
 
 
 class UserRegistrationView(APIView):
@@ -77,7 +77,7 @@ class GenerateOTP(APIView):
         else:
             user = Users.objects.filter(phone_number=item).first()
             if user:  
-                OTP.send_sms(user.phone_number, 'Your one-time password is')
+                OTP.send_sms(user.phone_number)
                 return Response({'message': 'OTP has been sent to your phone'}, status=status.HTTP_200_OK)
             else:
                 return Response({'error': 'User not found'}, status=status.HTTP_400_BAD_REQUEST)
@@ -130,17 +130,20 @@ class CreateRelation(APIView):
             f"Kindly click on the link below to ACCEPT or REJECT the nomination.\n"
             f"http://localhost:3000/accept/{createrela.id}"            
         )
-        try:
-            
-            post_data= {'recipient':request.data.get('phone_number'), 'message': message}
-            headers = {
-            'Content-Type': 'application/json',
-            'API-KEY': settings.WIGAL_KEY,
-            'USERNAME': 'osaheneBlackmore'
-            }
+        try:          
+            post_data = {
+                    "senderid": settings.WIGAL_SENDER_ID,
+                    "destinations": [
+                        {
+                        "destination": request.data.get('phone_number'),
+                        "msgid": "MGS1010101"
+                        }
+                    ],
+                    "message": message,
+                    "smstype": "text"
+                    }
             print('post', post_data)
-            response = requests.post('https://frogapi.wigal.com.gh/api/v3/sms/send', headers=headers, data=json.dumps(post_data))
-            print(response.json())
+            send_sms_task(post_data)
         except Exception as e:
             print(f"Failed to send SMS to {contact_data['phone_number']}: {str(e)}")
                 
@@ -336,34 +339,37 @@ class EmergencyActionView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = Users.objects.get(email=request.user) 
-        location = request.data.get('location')  # Location coordinates (latitude, longitude)
+        user = request.user
+        location = request.data.get('location')
         action = request.data.get('alertType')
-        
 
         # Ensure necessary fields are provided
         if not location or not action:
             return Response(
-                {"error": "Location and action_type are required."},
+                {"error": "Location and alertType are required."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Decode the location
         try:
             geolocator = Nominatim(user_agent="emergency_action_service")
-            location_info = geolocator.reverse(query=(location['latitude'], location['longitude']), exactly_one=True).raw['address']
-
+            location_info = geolocator.reverse(
+                query=(location['latitude'], location['longitude']),
+                exactly_one=True
+            ).raw['address']
+            
             country = location_info.get('country', '')
             region = location_info.get('state', '')
             city = location_info.get('city', '')
             town = location_info.get('town', '')
             locality = location_info.get('suburb', '')
-            
         except Exception as e:
             return Response(
                 {"error": f"Failed to decode location: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+        # Get user contacts
         contacts = Contacts.objects.filter(created_by=user, status='approved')
         if not contacts.exists():
             return Response(
@@ -371,61 +377,55 @@ class EmergencyActionView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Prepare and broadcast notifications for a fire action
-        
-        for contact in contacts:
-            subject = f"{action} Alert"
+        # Prepare personalized messages
+        sms_payloads = []
+        email_messages = []
+
+        for index, contact in enumerate(contacts):
             message = (
                 f"{action} Alert,\n\n"
                 f"Hello {contact.first_name} {contact.last_name},\n\n"
-                f"Your {(contact.relation).lower()}, {user.get_fullname()} has triggered an emergency {(action).lower()} alert. "
+                f"Your {contact.relation.lower()}, {user.get_fullname()}, has triggered an emergency {action.lower()} alert. "
                 f"They are at {locality}, {town}, {city}, {region}, {country}.\n\n"
-                f"Get it live here:\n"
+                f"View their location here:\n"
                 f"https://www.openstreetmap.org/?mlat={location['latitude']}&mlon={location['longitude']}&zoom=15\n\n"
-                "Please respond as soon as possible.\n\nThank you."
+                "Please respond immediately.\n\nThank you."
             )
 
-            try:
-                post_data= {
-                    "senderid": settings.WIGAL_SENDER_ID,
-                    "destinations": [
-                        {
-                        "destination": contact.phone_number,
-                        "msgid": "MGS1010101"
-                        }
-                    ],
-                    "message": message,
-                    "smstype": "text"
-                    }
-                
-                headers = {
-                'Content-Type': 'application/json',
-                'API-KEY': settings.WIGAL_KEY,
-                'USERNAME': 'osahene'
-                }
-                print('post', post_data)
-                response = requests.post('https://frogapi.wigal.com.gh/api/v3/sms/send', headers=headers, data=json.dumps(post_data))
-                print(response.json())
-                
-            except Exception as e:
-                print(f"Failed to send SMS to {contact.phone_number}: {str(e)}")
+            # Add to SMS payload
+            sms_payloads.append({
+                "destination": contact.phone_number,
+                "msgid": f"MSG_{index}",
+                "message": message
+            })
 
-            # Send Email
-            try:
-                send_mail(
-                    subject,
-                    message,
-                    settings.DEFAULT_FROM_EMAIL,
-                    [contact.email_address],
-                    fail_silently=False,
-                )
-            except Exception as e:
-                print(f"Failed to send email to {contact.email_address}: {str(e)}")
+            # Add to email messages
+            email_messages.append((
+                f"{action} Alert",
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [contact.email_address]
+            ))
+
+        # Send SMS asynchronously
+        sms_request_data = {
+            "senderid": settings.WIGAL_SENDER_ID,
+            "destinations": sms_payloads,
+            "smstype": "text"
+        }
+        
+        send_sms_task.delay(sms_request_data)
+
+        # Send emails in bulk
+        try:
+            send_email_task.delay(email_messages)
+        except Exception as e:
+            print(f"Failed to send some emails: {str(e)}")
 
         # Save emergency action to the database
         try:
             Emergency.objects.create(
-                created_by=Users.objects.get(email=request.user),
+                created_by=user,
                 action=action,
                 location={"latitude": location['latitude'], "longitude": location['longitude']},
                 country=country,
@@ -435,13 +435,15 @@ class EmergencyActionView(APIView):
                 locality=locality,
                 mission_status="success",
             )
-            return Response({"message": "Emergency action successfully logged."}, status=status.HTTP_201_CREATED)
+            return Response(
+                {"message": "Emergency action successfully logged."},
+                status=status.HTTP_201_CREATED
+            )
         except Exception as e:
             return Response(
                 {"error": f"Failed to log emergency action: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
 class USSDHandlerView(APIView):
     def post(self, request):
         session_id = request.data.get("sessionId")
