@@ -206,7 +206,6 @@ CORS_ALLOW_HEADERS = [
     "authorization",
     "content-type",
     "withcredentials",
-    #  "x-csrftoken",
 ]
 
 
@@ -216,6 +215,7 @@ TWILIO_PHONE_NUMBER = os.environ.get("TWILIO_PHONE")
 TWILIO_CHANNEL = os.environ.get("TWILIO_CHANNEL")
 TWILIO_SERVICES = os.environ.get("TWILIO_SERVICES")
 WIGAL_KEY = os.environ.get("API_KEY")
+WIGAL_SENDER_ID = os.environ.get("SENDER_ID")
 
 OTP_EXPIRATION_TIME = 300
 
@@ -230,7 +230,7 @@ REST_FRAMEWORK = {
 
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=120),
+    'ACCESS_TOKEN_LIFETIME': datetime.timedelta(minutes=3),
     'REFRESH_TOKEN_LIFETIME': datetime.timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': False,

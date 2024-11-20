@@ -146,6 +146,7 @@ class CreateRelation(APIView):
                 
         
         return Response('Contact created successfully', status=status.HTTP_201_CREATED)
+
 class ContactDetails(APIView):
     permission_classes = [AllowAny]
 
@@ -347,7 +348,6 @@ class EmergencyActionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Decode the location coordinates using OpenStreetMap (Geopy or OpenStreet API)
         try:
             geolocator = Nominatim(user_agent="emergency_action_service")
             location_info = geolocator.reverse(query=(location['latitude'], location['longitude']), exactly_one=True).raw['address']
@@ -364,7 +364,6 @@ class EmergencyActionView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        # Fetch contacts related to the user
         contacts = Contacts.objects.filter(created_by=user, status='approved')
         if not contacts.exists():
             return Response(
@@ -375,7 +374,6 @@ class EmergencyActionView(APIView):
         # Prepare and broadcast notifications for a fire action
         
         for contact in contacts:
-            # Prepare message details
             subject = f"{action} Alert"
             message = (
                 f"{action} Alert,\n\n"
@@ -387,13 +385,23 @@ class EmergencyActionView(APIView):
                 "Please respond as soon as possible.\n\nThank you."
             )
 
-            # Send SMS (pseudo code for integration with SMS service)
             try:
-                post_data= {'recipient':contact.phone_number, 'message': message}
+                post_data= {
+                    "senderid": settings.WIGAL_SENDER_ID,
+                    "destinations": [
+                        {
+                        "destination": contact.phone_number,
+                        "msgid": "MGS1010101"
+                        }
+                    ],
+                    "message": message,
+                    "smstype": "text"
+                    }
+                
                 headers = {
                 'Content-Type': 'application/json',
                 'API-KEY': settings.WIGAL_KEY,
-                'USERNAME': 'osaheneBlackmore'
+                'USERNAME': 'osahene'
                 }
                 print('post', post_data)
                 response = requests.post('https://frogapi.wigal.com.gh/api/v3/sms/send', headers=headers, data=json.dumps(post_data))
