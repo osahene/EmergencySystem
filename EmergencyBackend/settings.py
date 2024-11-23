@@ -16,7 +16,7 @@ load_dotenv()
 SECRET_KEY = os.environ.get('SECRET')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'emergencysystem.up.railway.app', 'ausecour.vercel.app']
 
@@ -228,6 +228,8 @@ CORS_ALLOW_HEADERS = [
     "content-type",
     "withcredentials",
 ]
+
+CORS_ALLOW_ALL_ORIGINS = False
 
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
