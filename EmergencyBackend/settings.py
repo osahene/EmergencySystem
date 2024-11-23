@@ -18,7 +18,7 @@ SECRET_KEY = os.environ.get('SECRET')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost',]
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'emergencysystem.up.railway.app', 'ausecour.vercel.app']
 
 
 # Application definition
@@ -194,6 +194,8 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:8000',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'https://emergencysystem.up.railway.app',
+    'https://ausecour.vercel.app',
 ]
 
 SESSION_COOKIE_HTTPONLY = True
@@ -215,6 +217,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:3000',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
+    'https://emergencysystem.up.railway.app',
+    'https://ausecour.vercel.app',
+    
 ]
 
 CORS_ALLOW_HEADERS = [
@@ -223,6 +228,62 @@ CORS_ALLOW_HEADERS = [
     "content-type",
     "withcredentials",
 ]
+
+CONTENT_SECURITY_POLICY = {
+    "DIRECTIVES": {
+        "default-src": [
+            "'self'", 
+            "https://emergencysystem.up.railway.app", 
+            # "https://paqsstoragebucket.s3.amazonaws.com"
+        ],
+        "script-src": [
+            "'self'", 
+            "'unsafe-eval'",  
+            "https://emergencysystem.up.railway.app", 
+            # "https://paqsstoragebucket.s3.amazonaws.com",
+            "'blob:'"
+        ],
+        "script-src-elem": [
+            "'self'", 
+            "'unsafe-eval'", 
+            "https://emergencysystem.up.railway.app", 
+            # "https://paqsstoragebucket.s3.amazonaws.com", 
+        ],
+        "style-src": [
+            "'self'", 
+            "https://paqscompany.vercel.app", 
+            # "https://paqsstoragebucket.s3.amazonaws.com", 
+            "'unsafe-inline'"  # allows inline CSS, useful if you have inline styles
+        ],
+        "style-src-elem": [
+            "'self'",  
+            # "https://paqsstoragebucket.s3.amazonaws.com", 
+            "'unsafe-inline'"
+        ],
+        "connect-src": [
+            "'self'", 
+            "https://emergencysystem.up.railway.app", 
+            # "https://paqsstoragebucket.s3.amazonaws.com"
+        ],
+        "img-src": [
+            "'self'", 
+            "blob:", 
+            "data:", 
+            "https://emergencysystem.up.railway.app", 
+            # "https://paqsstoragebucket.s3.amazonaws.com"
+        ],
+        "font-src": [
+            "'self'", 
+            # "https://paqsstoragebucket.s3.amazonaws.com"
+        ],
+        "object-src": ["'none'"],
+        "frame-ancestors": ["'self'"],
+        "form-action": ["'self'"],
+        "base-uri": ["'self'"],
+        # "report-uri": "https://paqscompany.vercel.app/account/csp-report/",
+        "upgrade-insecure-requests": True,
+    },
+}
 
 
 WIGAL_KEY = os.environ.get("API_KEY")
