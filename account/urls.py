@@ -1,8 +1,10 @@
 from django.urls import path
 from .views import (
     UserRegistrationView,
-    LoginView,
     VerifyPhoneNumber,
+    VerifyEmailAddress,
+    LoginView,
+    VerifyPhoneNumberOTP,
     GenerateOTP,
     # Create User
     CreateRelation,
@@ -25,7 +27,9 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
     path('user-register/', UserRegistrationView.as_view(), name='user-register'),
-    path('user-register-otp/', VerifyPhoneNumber.as_view(), name='user-register-otp'),
+    path('verify-email/', VerifyEmailAddress.as_view(), name='verify-email'),
+    path('verify-phone-number/', VerifyPhoneNumber.as_view(), name='verify-phone-number'),
+    path('verify-phone-number-otp/', VerifyPhoneNumberOTP.as_view(), name='verify-phone-number-otp'),
     path('user-login/', LoginView.as_view(), name='user-login'),
     # path('user-register-generate-otp/', RegisterGenerateOTP.as_view(), name='user-register-generate-otp'),
     path('user-register-generate-otp/', GenerateOTP.as_view(), name='user-generate-otp'),

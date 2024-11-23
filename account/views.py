@@ -25,21 +25,40 @@ class UserRegistrationView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        OTP.send_sms(user.phone_number)   
+        OTP.send_otp_email(user.email)   
 
         return Response({'message': 'OTP sent successfully'}, status=status.HTTP_201_CREATED)
 
 class VerifyPhoneNumber(APIView):
     def post(self, request):
+        user = request.user
+        
+        print('who here',user)
+        
+        users = Users.objects.filter(email=user).first()
+        try:            
+            if users:
+                OTP.send_sms(request.data.get('phoneNumber'))
+                return Response({'message': 'OTP sent to phone number successfully.'}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return  Response(
+                {"error": f"{str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class VerifyPhoneNumberOTP(APIView):
+    def post(self, request):
         
         phone_number =  request.data.get('phoneNumber')
         otp =  request.data.get('otp')
         
-        user = Users.objects.filter(phone_number=phone_number).first()
+        user = Users.objects.filter(email=request.user).first()
         
         if user:
             success = OTP.verify_otp(phone_number, otp)
             if success:
+                phone_num = Users.objects.update_or_create(phone_number=phone_number)
+                phone_num.save()
                 user.is_phone_verified = True
                 user.save()
                 tokens = user.tokens()
@@ -54,7 +73,29 @@ class VerifyPhoneNumber(APIView):
             return 
         return Response({'error': 'User does not exist'}, status=status.HTTP_400_BAD_REQUEST)
             
-
+class VerifyEmailAddress(APIView):
+    def post(self, request):
+        
+        email_address =  request.data.get('email')
+        otp =  request.data.get('otp')
+        
+        user = Users.objects.filter(email=email_address).first()
+        
+        if user:
+            success = OTP.verify_otp(email_address, otp)
+            if success:
+                user.is_verified = True
+                user.save()
+                tokens = user.tokens()
+                refresh = tokens['refresh']
+                access = tokens['access']
+                return Response({'message': 'Email Address verified successfully. Proceed to verify phone number',
+                                 'access': access, 
+                                'refresh' : refresh, 
+                                 }, status=status.HTTP_200_OK)
+            return 
+        return Response({'error': 'User does not exist'}, status=status.HTTP_400_BAD_REQUEST)
+            
 class LoginView(APIView):
     serializer_class = LoginSerializer
 
@@ -62,7 +103,6 @@ class LoginView(APIView):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 class GenerateOTP(APIView):
     def post(self, request):
@@ -81,7 +121,6 @@ class GenerateOTP(APIView):
                 return Response({'message': 'OTP has been sent to your phone'}, status=status.HTTP_200_OK)
             else:
                 return Response({'error': 'User not found'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class CreateRelation(APIView):
     permission_classes = [IsAuthenticated]
@@ -220,7 +259,6 @@ class UpdateRelationStatus(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
 class UserContactsList(ListAPIView):
     permission_classes=[IsAuthenticated]
     serializer_class = ContactSerializer
@@ -249,18 +287,13 @@ class UpdateSubscriptionView(APIView):
             status=status.HTTP_200_OK
         )
  
- 
 class DependantsListView(APIView):
     
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user_phone_number = request.query_params.get('phone_number', None)
-        
-        if not user_phone_number:
-            return Response({"error" : "invalid request"}, status=status.HTTP_403_FORBIDDEN)
-        
-        contacts = Contacts.objects.filter(phone_number=user_phone_number)
+        user = request.user        
+        contacts = Contacts.objects.filter(email=user).first()
         
         if not contacts.exists():
             return Response({'message': 'No contacts found'}, status=status.HTTP_404_NOT_FOUND)
@@ -285,7 +318,6 @@ class DependantsListView(APIView):
             return Response({'message': 'No contacts found'}, status=status.HTTP_200_OK)
         return Response({'dependant_list': contacts_data}, status=status.HTTP_200_OK)
     
-
 class ApproveDependantView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -444,6 +476,7 @@ class EmergencyActionView(APIView):
                 {"error": f"Failed to log emergency action: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+            
 class USSDHandlerView(APIView):
     def post(self, request):
         session_id = request.data.get("sessionId")

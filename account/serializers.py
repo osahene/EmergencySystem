@@ -13,19 +13,16 @@ class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         write_only=True, required=True, validators=[password_validation.validate_password]
     )
-    phone_number = serializers.CharField(validators=[RegexValidator(regex=r'^\+\d{9,16}$')])
 
     class Meta:
         model = Users
-        fields = ['first_name', 'last_name', 'email', 'phone_number', 'password']
+        fields = ['first_name', 'last_name', 'email', 'password']
         extra_kwargs = {'password': {'write_only': True, 'required':True}}
         
     def validate_email(self, value):
         """Check if email is already registered"""
         if Users.objects.filter(email=value).exists():
             raise ValidationError("A user with this email already exists.")
-        elif Users.objects.filter(phone_number=value).exists():
-            raise ValidationError("A user with this phone number already exists.")
         return value
 
     def create(self, validated_data):
