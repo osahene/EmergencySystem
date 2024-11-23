@@ -92,28 +92,28 @@ CACHES = {
 }
 RATELIMIT_USE_CACHE = 'ratelimit'
 
-# logging.basicConfig(
-#     level=logging.DEBUG,
-#     format='%(asctime)s %(levelname)s %(message)s',
-# )
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s %(message)s',
+)
 
-# LOGGING = {
-#     'version': 1,
-#     'disable_existing_loggers': False,
-#     'handlers': {
-#         'console': {  
-#             'level': 'DEBUG',
-#             'class': 'logging.StreamHandler',
-#         },
-#     },
-#     'loggers': {
-#         'django': {
-#             'handlers': ['console'],
-#             'level': 'ERROR',
-#             'propagate': True,
-#         },
-#     },
-# }
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {  
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    },
+}
 
 
 ROOT_URLCONF = 'EmergencyBackend.urls'
@@ -199,7 +199,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 SESSION_COOKIE_HTTPONLY = True
-# SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTOCOL", "https")
 SECURE_SSL_REDIRECT = False
 SECURE_HSTS_SECONDS = 31536000  
@@ -208,9 +208,9 @@ SECURE_HSTS_PRELOAD = True
 CORS_ALLOW_CREDENTIALS = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
-# CSRF_COOKIE_HTTPONLY = True
-# CSRF_COOKIE_SECURE = True
-# CSRF_HEADER_NAME = "X_CSRFToken"
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SECURE = True
+CSRF_HEADER_NAME = "X_CSRFToken"
 # CSRF_COOKIE_NAME = 'csrftoken'
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
