@@ -1,5 +1,4 @@
 from pathlib import Path
-from neomodel import config
 import os
 from dotenv import load_dotenv
 import datetime 
@@ -24,6 +23,7 @@ ALLOWED_HOSTS = ['127.0.0.1', 'localhost',]
 # Application definition
 
 INSTALLED_APPS = [
+    'whitenoise.runserver_nostatic',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -65,7 +65,31 @@ AUTHENTICATION_BACKENDS = [
     "EmergencyBackend.backends.EmailOrPhoneBackend",
 ]
 
+REDIS_URL = os.environ.get("REDIS_CONNECT")
 
+CELERY_BROKER_URL =  REDIS_URL
+CELERY_RESULT_BACKEND = REDIS_URL
+# CELERY CONFIG
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND")
+CELERY_BEAT_SCHEDULER = os.environ.get("CELERY_BEAT_SCHEDULER")
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_CACHE_BACKEND = 'django-cache'
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# REDIS CACHE CONFIG
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+    },
+    "ratelimit": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+    },
+}
+RATELIMIT_USE_CACHE = 'ratelimit'
 
 # logging.basicConfig(
 #     level=logging.DEBUG,
