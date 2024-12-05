@@ -37,9 +37,11 @@ class VerifyPhoneNumber(APIView):
         print('who here',user)
         
         users = Users.objects.filter(email=user).first()
+        print('user',users)
         try:            
             if users:
-                OTP.send_sms(request.data.get('phoneNumber'))
+                Users.objects.update_or_create(phone_number=request.data.get('phone_number'))
+                OTP.send_sms(request.data.get('phone_number'))
                 return Response({'message': 'OTP sent to phone number successfully.'}, status=status.HTTP_200_OK)
         except Exception as e:
             return  Response(
@@ -58,8 +60,8 @@ class VerifyPhoneNumberOTP(APIView):
         if user:
             success = OTP.verify_otp(phone_number, otp)
             if success:
-                phone_num = Users.objects.update_or_create(phone_number=phone_number)
-                phone_num.save()
+                # phone_num = Users.objects.update_or_create(phone_number=phone_number)
+                # phone_num.save()
                 user.is_phone_verified = True
                 user.save()
                 tokens = user.tokens()
@@ -107,7 +109,7 @@ class LoginView(APIView):
 
 class GenerateOTP(APIView):
     def post(self, request):
-        item = request.data
+        item = request.data.get('email')
         if '@' in item:
             user = Users.objects.filter(email=item).first()
             if user:  
