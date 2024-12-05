@@ -79,8 +79,6 @@ class LoginSerializer(serializers.ModelSerializer):
             raise AuthenticationFailed('Phone number is not verified')
 
         return {
-            'email': user.email,
-            'phone_number': user.phone_number,
             'first_name': users.first_name,
             'last_name': users.last_name,
             'access': user.tokens()['access'],

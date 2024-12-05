@@ -30,6 +30,7 @@ class UserRegistrationView(APIView):
         return Response({'message': 'OTP sent successfully'}, status=status.HTTP_201_CREATED)
 
 class VerifyPhoneNumber(APIView):
+    permission_classes = [IsAuthenticated]
     def post(self, request):
         user = request.user
         
@@ -49,7 +50,7 @@ class VerifyPhoneNumber(APIView):
 class VerifyPhoneNumberOTP(APIView):
     def post(self, request):
         
-        phone_number =  request.data.get('phoneNumber')
+        phone_number =  request.data.get('phone_number')
         otp =  request.data.get('otp')
         
         user = Users.objects.filter(email=request.user).first()
@@ -106,11 +107,11 @@ class LoginView(APIView):
 
 class GenerateOTP(APIView):
     def post(self, request):
-        item = request.data.get('phoneNumber')
+        item = request.data
         if '@' in item:
-            user = Users.objects.filter(email_address=item).first()
+            user = Users.objects.filter(email=item).first()
             if user:  
-                OTP.send_otp_email(user.email_address)
+                OTP.send_otp_email(user.email)
                 return Response({'message': 'OTP has been sent to your email'}, status=status.HTTP_200_OK)
             else:
                 return Response({'error': 'User not found'}, status=status.HTTP_400_BAD_REQUEST)

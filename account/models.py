@@ -56,7 +56,7 @@ class AbstractUserProfile(AbstractBaseUser, PermissionsMixin):
         validators=[EmailValidator()],  # Ensure valid email format
     )
     
-    phone_number = models.CharField(max_length=20, unique=True)
+    phone_number = models.CharField(max_length=20, unique=True, null=True, blank=True)
     is_phone_verified = models.BooleanField(default=False)    
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -208,7 +208,25 @@ class OTP(models.Model):
     @staticmethod
     def hash_otp(otp_code):
         """Hash the OTP code before storing."""
-        return hashlib.sha256(otp_code.encode()).hexdigest()
+        print('Received OTP:', otp_code)
+
+        # If it's a dictionary, extract the 'otp' key
+        if isinstance(otp_code, dict):
+            otp = otp_code.get('otp')  # Ensure 'otp' is accessed as a string key
+            if not otp:
+                raise ValueError("The dictionary does not contain a valid 'otp' key.")
+            print('Extracted OTP:', otp)
+            return hashlib.sha256(otp.encode('utf-8')).hexdigest()
+
+        # If it's not a dictionary, assume it's already a string
+        elif isinstance(otp_code, str):
+            print('OTP is a string:', otp_code)
+            return hashlib.sha256(otp_code.encode('utf-8')).hexdigest()
+
+        # Handle unexpected types
+        else:
+            raise TypeError(f"Invalid type for otp_code: {type(otp_code)}")
+
 
     @staticmethod
     def generate_otp():
@@ -216,7 +234,7 @@ class OTP(models.Model):
 
     @staticmethod
     def create_otp(item):
-        user = Users.objects.filter(email_address=item).first() if '@' in item else Users.objects.filter(phone_number=item).first()
+        user = Users.objects.filter(email=item).first() if '@' in item else Users.objects.filter(phone_number=item).first()
         if not user:
             raise Exception("User with this phone number or email does not exist")
         
@@ -241,7 +259,7 @@ class OTP(models.Model):
 
     @staticmethod
     def verify_otp(item, otp_code):
-        user = Users.objects.filter(email_address=item).first() if '@' in item else Users.objects.filter(phone_number=item).first()
+        user = Users.objects.filter(email=item).first() if '@' in item else Users.objects.filter(phone_number=item).first()
         if not user:
             raise Exception("User with this phone number or email does not exist")
 
