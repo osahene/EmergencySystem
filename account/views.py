@@ -11,6 +11,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from geopy.geocoders import Nominatim
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.db import IntegrityError
 from .models import OTP, Users, Contacts, Emergency
 from .tasks import send_sms_task, send_email_task
 
@@ -31,21 +32,42 @@ class UserRegistrationView(APIView):
 
 class VerifyPhoneNumber(APIView):
     permission_classes = [IsAuthenticated]
+
     def post(self, request):
         user = request.user
-        
-        print('who here',user)
-        
-        users = Users.objects.filter(email=user).first()
-        print('user',users)
-        try:            
-            if users:
-                Users.objects.update_or_create(phone_number=request.data.get('phone_number'))
-                OTP.send_sms(request.data.get('phone_number'))
-                return Response({'message': 'OTP sent to phone number successfully.'}, status=status.HTTP_200_OK)
+        phone_number = request.data.get('phone_number')
+
+        if not phone_number:
+            return Response(
+                {"error": "Phone number is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            # Check if the phone number already exists
+            if Users.objects.filter(phone_number=phone_number).exclude(email=user.email).exists():
+                return Response(
+                    {"error": "This phone number is already in use by another user."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Update the phone number for the authenticated user
+            user.phone_number = phone_number
+            user.is_phone_verified = False  # Reset phone verification if applicable
+            user.save()
+
+            # Send OTP to the phone number
+            OTP.send_sms(phone_number)
+            return Response({'message': 'OTP sent to phone number successfully.'}, status=status.HTTP_200_OK)
+
+        except IntegrityError:
+            return Response(
+                {"error": "Failed to update phone number due to a database constraint."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         except Exception as e:
-            return  Response(
-                {"error": f"{str(e)}"},
+            return Response(
+                {"error": f"An unexpected error occurred: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
