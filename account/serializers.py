@@ -47,7 +47,8 @@ class LoginSerializer(serializers.ModelSerializer):
             'tokens', 'first_name', 'last_name'
             ]
     def get_tokens(self, obj):
-        user = Users.objects.get(email=obj['email'])
+        print(' obj', obj)
+        user = Users.objects.get(first_name=obj['first_name'])
 
         return {
             'refresh': user.tokens()['refresh'],
@@ -77,6 +78,8 @@ class LoginSerializer(serializers.ModelSerializer):
             raise AuthenticationFailed('Account disabled, contact admin')
         if not users.is_phone_verified:
             raise AuthenticationFailed('Phone number is not verified')
+        if not users.is_verified:
+            raise AuthenticationFailed('Email is not verified. Register again')
 
         return {
             'first_name': users.first_name,

@@ -14,7 +14,9 @@ from rest_framework.response import Response
 from rest_framework import status
 import random
 from django.urls import reverse
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage
+import threading
+
 
 OTP_EXPIRATION_TIME = 300  # 5 minutes
 MAX_OTP_ATTEMPTS = 3
@@ -199,6 +201,15 @@ class Institution(AbstractUserProfile):
     def get_absolute_url(self):
         return reverse('institution-detail', kwargs={'pk': self.pk})  
 
+class EmailThread(threading.Thread):
+    def __init__(self, email):
+        self.email = email
+        threading.Thread.__init__(self)
+
+    def run(self):
+        self.email.send()
+
+
 class OTP(models.Model):
     user = models.ForeignKey(Users, related_name='otps', on_delete=models.CASCADE)
     otp_code = models.CharField(max_length=255)
@@ -280,42 +291,55 @@ class OTP(models.Model):
     def send_otp_email(email_address, message=None):
         otp_code = OTP.create_otp(email_address)
         print('otp code', otp_code)
-
+        messages = (
+            f"Hello,\n\n"
+            f"Your email verification code is {otp_code}\n\n"
+            f"Thank you"
+        )
         try:
-            send_mail(
+            email = EmailMessage(
                 subject="Email Verification OTP", 
-                message=f"This is your email verification OTP{otp_code}",
-                recipient_list=[email_address],
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                fail_silently=False
+                body=messages,
+                to=[email_address],
                 )
+            email.content_subtype = 'html'
+            EmailThread(email).start()
             return Response({'message': 'OTP has been sent to your email'}, status=status.HTTP_200_OK)
         except Exception as e:
             print(f"Error sending SMS: {e}")
             return Response({'message': 'Error sending OTP'}, status=status.HTTP_400_BAD_REQUEST)
-
+    
+    
     @staticmethod
     def send_sms(phone_number):
         otp_code = OTP.create_otp(phone_number)
         print('otp code', otp_code)
+        rand = str(random.randint(10, 999))
         post_data = {
-                    "senderid": settings.WIGAL_SENDER_ID,
+                    # "senderid": settings.WIGAL_SENDER_ID,
+                    "senderid": 'Emergency',
                     "destinations": [
                         {
                         "destination": phone_number,
-                        "msgid": "MGS10101"
+                        "msgid": f"MGS{rand}"
                         }
                     ],
                     "message": f"Your one-time password is: {otp_code}",
                     "smstype": "text"
                     }
+        HEADERS = {
+            'Content-Type': 'application/json',
+            'API-KEY': settings.WIGAL_KEY,
+            'USERNAME': 'osahene'
+        }
 
         try:
             response = requests.post(
             'https://frogapi.wigal.com.gh/api/v3/sms/send',
-            headers=settings.HEADERS,
+            headers= HEADERS,
             data=json.dumps(post_data)
         )
+            print('res', response.json())
             return response.json()
            
         except Exception as e:

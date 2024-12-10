@@ -1,5 +1,6 @@
 import requests
 import json
+import random
 from .serializers import RegisterSerializer, LoginSerializer, ContactSerializer, ContactStatusSerializer
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
@@ -194,13 +195,14 @@ class CreateRelation(APIView):
             f"Kindly click on the link below to ACCEPT or REJECT the nomination.\n"
             f"http://localhost:3000/accept/{createrela.id}"            
         )
-        try:          
+        try:   
+            rand = str(random.randint(10, 999))       
             post_data = {
                     "senderid": settings.WIGAL_SENDER_ID,
                     "destinations": [
                         {
                         "destination": request.data.get('phone_number'),
-                        "msgid": "MGS1010101"
+                        "msgid": f"MGS{rand}"
                         }
                     ],
                     "message": message,
@@ -318,9 +320,9 @@ class DependantsListView(APIView):
 
     def get(self, request):
         user = request.user        
-        contacts = Contacts.objects.filter(email=user).first()
+        contacts = Contacts.objects.filter(email_address=user).first()
         
-        if not contacts.exists():
+        if not contacts:
             return Response({'message': 'No contacts found'}, status=status.HTTP_404_NOT_FOUND)
         
         contacts_data = []
@@ -340,7 +342,7 @@ class DependantsListView(APIView):
             contacts_data.append(contact_info)
            
         if len(contacts_data) < 1:
-            return Response({'message': 'No contacts found'}, status=status.HTTP_200_OK)
+            return Response({'message': 'Zero contacts found'}, status=status.HTTP_200_OK)
         return Response({'dependant_list': contacts_data}, status=status.HTTP_200_OK)
     
 class ApproveDependantView(APIView):

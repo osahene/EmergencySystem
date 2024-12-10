@@ -306,11 +306,6 @@ PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY")
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 
-HEADERS = {
-            'Content-Type': 'application/json',
-            'API-KEY': WIGAL_KEY,
-            'USERNAME': 'osahene'
-        }
 
 OTP_EXPIRATION_TIME = 300
 
