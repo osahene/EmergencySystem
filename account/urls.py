@@ -6,6 +6,7 @@ from .views import (
     LoginView,
     VerifyPhoneNumberOTP,
     GenerateOTP,
+    LogoutAPIView,
     # Create User
     CreateRelation,
     UserContactsList,
@@ -32,6 +33,7 @@ urlpatterns = [
     path('verify-phone-number/', VerifyPhoneNumber.as_view(), name='verify-phone-number'),
     path('verify-phone-number-otp/', VerifyPhoneNumberOTP.as_view(), name='verify-phone-number-otp'),
     path('user-login/', LoginView.as_view(), name='user-login'),
+    path('user-logout/', LogoutAPIView.as_view(), name='user-logout'),
     # Generate OTP
     path('user-register-generate-otp/', GenerateOTP.as_view(), name='user-generate-otp'),
     # create relations

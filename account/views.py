@@ -2,6 +2,8 @@ import requests
 import json
 import random
 from .serializers import RegisterSerializer, LoginSerializer, ContactSerializer, ContactStatusSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -147,6 +149,20 @@ class GenerateOTP(APIView):
                 return Response({'message': 'OTP has been sent to your phone'}, status=status.HTTP_200_OK)
             else:
                 return Response({'error': 'User not found'}, status=status.HTTP_400_BAD_REQUEST)
+
+class LogoutAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        refresh_token = request.data.get('refresh')
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except (RefreshToken.DoesNotExist, ValidationError):
+                return Response({'Failed': 'The operation is invalid'},status=status.HTTP_404_NOT_FOUND)
+                  # Ignore potential errors if token is invalid or blacklisted already
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class CreateRelation(APIView):
     permission_classes = [IsAuthenticated]
@@ -375,7 +391,6 @@ class DeleteContactView(APIView):
     permission_classes = [IsAuthenticated]
     
     def post(self, request):
-        print('del', request.data)
         contact = get_object_or_404(Contacts, pk=request.data.get('pk'), created_by=request.user)
         contact.delete()
         return Response({'message': 'Contact deleted successfully'}, status=status.HTTP_200_OK)
@@ -386,8 +401,6 @@ class UpdateContactView(APIView):
     def post(self, request):
         contact = get_object_or_404(Contacts, pk=request.data.get('pk'), created_by=request.user)
         serializer = ContactSerializer(contact, data=request.data)
-        print('data',request.data)
-        print('ser',serializer)
         if serializer.is_valid():
             serializer.save()
             return Response({'message': 'Contact updated successfully'}, status=status.HTTP_200_OK)

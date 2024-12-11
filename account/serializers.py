@@ -47,7 +47,6 @@ class LoginSerializer(serializers.ModelSerializer):
             'tokens', 'first_name', 'last_name'
             ]
     def get_tokens(self, obj):
-        print(' obj', obj)
         user = Users.objects.get(first_name=obj['first_name'])
 
         return {
