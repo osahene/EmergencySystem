@@ -1,6 +1,8 @@
 import requests
 import json
 import random
+import jwt
+from datetime import timedelta
 from .serializers import RegisterSerializer, LoginSerializer, ContactSerializer, ContactStatusSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.exceptions import ValidationError
@@ -202,6 +204,9 @@ class CreateRelation(APIView):
         createrela = Contacts.objects.create(**contact_data)     
         createrela.save()
         
+        token = RefreshToken.for_user(user).access_token
+        token.set_exp(lifetime=timedelta(days=1))
+        
         message = (
             f'From: Help OO Help,\n\n'
             f'Subject: Emergency Alert Confirmation \n\n'
@@ -209,7 +214,7 @@ class CreateRelation(APIView):
             f"Your {(request.data.get('relation')).lower()}, {user.get_fullname()}, has nominated you, that you should \n"
             f"be contacted in case of emergency.\n"
             f"Kindly click on the link below to ACCEPT or REJECT the nomination.\n"
-            f"http://localhost:3000/accept/{createrela.id}"            
+            f"http://localhost:3000/guestInvite/accept/?token={token}&contact_id={createrela.id}"            
         )
         try:   
             rand = str(random.randint(10, 999))       
@@ -226,6 +231,7 @@ class CreateRelation(APIView):
                     }
             print('post', post_data)
             send_sms_task(post_data)
+            # send_email_task(post_data)
         except Exception as e:
             print(f"Failed to send SMS to {contact_data['phone_number']}: {str(e)}")
                 
@@ -253,6 +259,7 @@ class UpdateRelationStatus(APIView):
         try:
             contact_id = request.data.get('contact_id')
             action = request.data.get('action')
+            token = request.data.get('token')
             
             if not contact_id or not action:
                 return Response(
@@ -263,6 +270,17 @@ class UpdateRelationStatus(APIView):
             if action not in ['approved', 'rejected']:
                 return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
 
+            set_key = str(settings.SECRET_KEY)
+            
+            try:
+                jwt.decode(token, set_key, algorithms=["HS256"])
+            
+            except jwt.ExpiredSignatureError as identifier:
+                return Response({'error': 'Activation Expired'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            except jwt.exceptions.DecodeError as identifier:
+                return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)    # Redirect to frontend login page
+            
             try:
                 contact = Contacts.objects.get(id=contact_id)
                 contact.status = action
