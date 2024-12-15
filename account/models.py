@@ -18,7 +18,7 @@ from django.core.mail import EmailMessage
 import threading
 
 
-OTP_EXPIRATION_TIME = 300  # 5 minutes
+OTP_EXPIRATION_TIME = 120  # 5 minutes
 MAX_OTP_ATTEMPTS = 3
 
 class UserManager(BaseUserManager):
@@ -219,17 +219,14 @@ class OTP(models.Model):
     @staticmethod
     def hash_otp(otp_code):
         """Hash the OTP code before storing."""
-        # If it's a dictionary, extract the 'otp' key
         if isinstance(otp_code, dict):
-            otp = otp_code.get('otp')  # Ensure 'otp' is accessed as a string key
+            otp = otp_code.get('otp')  
             if not otp:
                 raise ValueError("The dictionary does not contain a valid 'otp' key.")
             return hashlib.sha256(otp.encode('utf-8')).hexdigest()
-        # If it's not a dictionary, assume it's already a string
         elif isinstance(otp_code, str):
             return hashlib.sha256(otp_code.encode('utf-8')).hexdigest()
 
-        # Handle unexpected types
         else:
             raise TypeError(f"Invalid type for otp_code: {type(otp_code)}")
 
