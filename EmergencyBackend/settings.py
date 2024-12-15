@@ -18,7 +18,7 @@ SECRET_KEY = os.environ.get('SECRET')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'emergencysystem.up.railway.app', 'ausecour.vercel.app']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'emergencysystem.up.railway.app', 'ausecour.vercel.app', 'helpnext.vercel.app']
 
 
 # Application definition
@@ -196,6 +196,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
     'https://emergencysystem.up.railway.app',
     'https://ausecour.vercel.app',
+    'https://helpnext.vercel.app',
 ]
 
 SESSION_COOKIE_HTTPONLY = True
@@ -219,6 +220,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
     'https://emergencysystem.up.railway.app',
     'https://ausecour.vercel.app',
+    'https://helpnext.vercel.app',
     
 ]
 
