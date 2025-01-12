@@ -18,7 +18,7 @@ from django.core.mail import EmailMessage
 import threading
 
 
-OTP_EXPIRATION_TIME = 120  # 5 minutes
+OTP_EXPIRATION_TIME = 30  # 5 minutes
 MAX_OTP_ATTEMPTS = 3
 
 class UserManager(BaseUserManager):

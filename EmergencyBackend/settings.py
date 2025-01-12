@@ -16,7 +16,7 @@ load_dotenv()
 SECRET_KEY = os.environ.get('SECRET')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'emergencysystem.up.railway.app', 'ausecour.vercel.app', 'helpnext.vercel.app']
 
@@ -193,6 +193,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:8000',
     'http://localhost:3000',
+    'http://localhost:9000',
     'http://127.0.0.1:3000',
     'https://emergencysystem.up.railway.app',
     'https://ausecour.vercel.app',
@@ -217,6 +218,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://localhost:8000',
+    'http://localhost:9000',
     'http://127.0.0.1:8000',
     'https://emergencysystem.up.railway.app',
     'https://ausecour.vercel.app',

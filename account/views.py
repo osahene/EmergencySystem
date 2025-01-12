@@ -3,7 +3,7 @@ import json
 import random
 import jwt
 from datetime import timedelta
-from .serializers import RegisterSerializer, LoginSerializer, ContactSerializer, ContactStatusSerializer
+from .serializers import RegisterSerializer, LoginSerializer, ContactSerializer, CustomAuthenticationFailed
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
@@ -83,7 +83,7 @@ class VerifyPhoneNumberOTP(APIView):
         otp =  request.data.get('otp')
         
         user = Users.objects.filter(email=request.user).first()
-        
+        print('use', user)
         if user:
             success = OTP.verify_otp(phone_number, otp)
             if success:
@@ -92,11 +92,13 @@ class VerifyPhoneNumberOTP(APIView):
                 user.is_phone_verified = True
                 user.save()
                 tokens = user.tokens()
-                refresh = tokens['refresh']
-                access = tokens['access']
+                # refresh = tokens['refresh']
+                # access = tokens['access']
                 return Response({'message': 'Phone number verified successfully',
-                                 'access': access, 
-                                'refresh' : refresh, 
+                                'tokens' : tokens, 
+                                #  'access': access, 
+                                # 'refresh' : refresh,
+                                'is_phone_verified' : user.is_phone_verified,
                                 'first_name':user.first_name,
                                 'last_name':user.last_name,
                                  }, status=status.HTTP_200_OK)
@@ -117,11 +119,8 @@ class VerifyEmailAddress(APIView):
                 user.is_verified = True
                 user.save()
                 tokens = user.tokens()
-                refresh = tokens['refresh']
-                access = tokens['access']
                 return Response({'message': 'Email Address verified successfully. Proceed to verify phone number',
-                                 'access': access, 
-                                'refresh' : refresh, 
+                                 'tokens': tokens, 
                                  }, status=status.HTTP_200_OK)
             return 
         return Response({'error': 'User does not exist'}, status=status.HTTP_400_BAD_REQUEST)
@@ -131,8 +130,12 @@ class LoginView(APIView):
 
     def post(self, request):
         serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        try:
+            serializer.is_valid(raise_exception=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except CustomAuthenticationFailed as e:
+            return Response(e.detail, status=status.HTTP_307_TEMPORARY_REDIRECT)
+
 
 class GenerateOTP(APIView):
     def post(self, request):
@@ -236,7 +239,7 @@ class CreateRelation(APIView):
             print(f"Failed to send SMS to {contact_data['phone_number']}: {str(e)}")
                 
         
-        return Response('Contact created successfully', status=status.HTTP_201_CREATED)
+        return Response({'message':'Contact created successfully'}, status=status.HTTP_201_CREATED)
 
 class ContactDetails(APIView):
     permission_classes = [AllowAny]

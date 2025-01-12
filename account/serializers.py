@@ -1,9 +1,12 @@
 from rest_framework import serializers
+from rest_framework.response import Response
+from rest_framework import status
 from django.core.validators import EmailValidator
 from rest_framework.exceptions import ValidationError, AuthenticationFailed
-from .models import Users, Contacts
+from .models import Users, Contacts, OTP
 from django.contrib.auth import password_validation, authenticate
 from django.core.validators import RegexValidator
+from rest_framework.exceptions import APIException
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -28,63 +31,88 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = Users.objects.create_user(**validated_data)
         return user
-
+    
+    
+class CustomAuthenticationFailed(APIException):
+    status_code = 307  # Temporary Redirect-like behavior
+    default_detail = "Authentication failed."
+    default_code = "authentication_failed"
+    
+    def __init__(self, detail=None, redirect_url=None):
+        if detail is None:
+            detail = self.default_detail
+        self.detail = {"detail": detail}
+        if redirect_url:
+            self.detail["redirect_url"] = redirect_url
+    
 class LoginSerializer(serializers.ModelSerializer):
-    email = serializers.CharField(
-        max_length=255, write_only=True
-    )
-    password = serializers.CharField(write_only=True)  # Access company name from related field
-    phone_number = serializers.CharField(read_only=True)  # Access company name from related field
+    email = serializers.CharField(max_length=255, write_only=True)
+    password = serializers.CharField(write_only=True)
+    phone_number = serializers.CharField(read_only=True)
     first_name = serializers.CharField(read_only=True)
     last_name = serializers.CharField(read_only=True)
     tokens = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Users
         fields = [
             'email', 'password', 
             'phone_number', 
             'tokens', 'first_name', 'last_name'
-            ]
-    def get_tokens(self, obj):
-        user = Users.objects.get(first_name=obj['first_name'])
+        ]
 
+    def get_tokens(self, obj):
         return {
-            'refresh': user.tokens()['refresh'],
-            'access': user.tokens()['access']
+            'refresh': obj.tokens()['refresh'],
+            'access': obj.tokens()['access'],
         }
-        
+
     def validate(self, attrs):
         email = attrs.get('email', '')
         password = attrs.get('password', '')
+        user = None
+
         if '@' in email:
             validator = EmailValidator(message='Enter a valid email address')
             try:
                 validator(email)
-                user = authenticate(email=email, password=password)
-                if user:
-                    users = Users.objects.filter(email=email).first()
             except ValidationError:
-                raise AuthenticationFailed('Enter a valid credential')
+                raise AuthenticationFailed("Enter a valid email address.")
+            user = authenticate(email=email, password=password)
         else:
             user = authenticate(phone_number=email, password=password)
-           
-            if user:
-                users = Users.objects.filter(phone_number=email).first()
-        if not users:
-            raise AuthenticationFailed('Invalid credentials, try again')
-        if not users.is_active:
-            raise AuthenticationFailed('Account disabled, contact admin')
-        if not users.is_phone_verified:
-            raise AuthenticationFailed('Phone number is not verified')
-        if not users.is_verified:
-            raise AuthenticationFailed('Email is not verified. Register again')
+
+        if not user:
+            raise AuthenticationFailed("Invalid credentials, try again.")
+
+        if not user.is_active:
+            raise AuthenticationFailed("Account disabled, contact admin.")
+        
+        if not user.is_verified:
+            OTP.send_otp_email(user.email)
+            raise CustomAuthenticationFailed(
+                "Email not verified. A verification email has been sent.",
+                redirect_url="/auth/email-verify"
+            )
+
+        # if not user.phone_number:
+        #     raise CustomAuthenticationFailed(
+        #         "Empty phone number.",
+        #         redirect_url="/auth/phone-number"
+        #     )
+
+        # if not user.is_phone_verified:
+        #     OTP.send_sms(user.phone_number)
+        #     raise CustomAuthenticationFailed(
+        #         "Phone number not verified. An OTP has been sent.",
+        #         redirect_url="/auth/phone-number-verify"
+        #     )
 
         return {
-            'first_name': users.first_name,
-            'last_name': users.last_name,
-            'access': user.tokens()['access'],
-            'refresh': user.tokens()['refresh']
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'is_phone_verified': user.is_phone_verified,
+            'tokens': self.get_tokens(user),
         }
 
 class ContactSerializer(serializers.ModelSerializer):
