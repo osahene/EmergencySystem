@@ -51,6 +51,7 @@ class LoginSerializer(serializers.ModelSerializer):
     phone_number = serializers.CharField(read_only=True)
     first_name = serializers.CharField(read_only=True)
     last_name = serializers.CharField(read_only=True)
+    is_phone_verified = serializers.BooleanField(read_only=True)
     tokens = serializers.SerializerMethodField()
 
     class Meta:
@@ -58,13 +59,12 @@ class LoginSerializer(serializers.ModelSerializer):
         fields = [
             'email', 'password', 
             'phone_number', 
-            'tokens', 'first_name', 'last_name'
+            'tokens', 'first_name', 'last_name', 'is_phone_verified'
         ]
 
     def get_tokens(self, obj):
         return {
-            'refresh': obj.tokens()['refresh'],
-            'access': obj.tokens()['access'],
+            'tokens': obj['tokens']
         }
 
     def validate(self, attrs):
@@ -79,8 +79,11 @@ class LoginSerializer(serializers.ModelSerializer):
             except ValidationError:
                 raise AuthenticationFailed("Enter a valid email address.")
             user = authenticate(email=email, password=password)
+            users = Users.objects.filter(email=email).first()
+            
         else:
             user = authenticate(phone_number=email, password=password)
+            users = Users.objects.filter(phone_number=email).first()
 
         if not user:
             raise AuthenticationFailed("Invalid credentials, try again.")
@@ -107,12 +110,11 @@ class LoginSerializer(serializers.ModelSerializer):
         #         "Phone number not verified. An OTP has been sent.",
         #         redirect_url="/auth/phone-number-verify"
         #     )
-
         return {
-            'first_name': user.first_name,
-            'last_name': user.last_name,
+            'first_name': users.first_name,
+            'last_name': users.last_name,
             'is_phone_verified': user.is_phone_verified,
-            'tokens': self.get_tokens(user),
+            'tokens': user.tokens(),
         }
 
 class ContactSerializer(serializers.ModelSerializer):

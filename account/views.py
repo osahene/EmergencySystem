@@ -83,7 +83,6 @@ class VerifyPhoneNumberOTP(APIView):
         otp =  request.data.get('otp')
         
         user = Users.objects.filter(email=request.user).first()
-        print('use', user)
         if user:
             success = OTP.verify_otp(phone_number, otp)
             if success:
@@ -135,7 +134,6 @@ class LoginView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except CustomAuthenticationFailed as e:
             return Response(e.detail, status=status.HTTP_307_TEMPORARY_REDIRECT)
-
 
 class GenerateOTP(APIView):
     def post(self, request):
@@ -356,37 +354,41 @@ class DependantsListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user        
-        contacts = Contacts.objects.filter(email_address=user).first()
-        
-        if not contacts:
-            return Response({'message': 'No contacts found'}, status=status.HTTP_404_NOT_FOUND)
-        
-        contacts_data = []
-        
-        for contact in contacts:
-            contact_info = {
-                'created_by': {
+        try:
+            user = request.user
+            try:
+                user = Users.objects.get(email=user)
+                user_phone_number = user.phone_number
+            except Users.DoesNotExist:
+                return Response({'message': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            contacts = Contacts.objects.filter(phone_number=user_phone_number)
+            if not contacts:
+                return Response({'message': 'No contacts found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            contacts_data = []
+            
+            for contact in contacts:
+                contact_info = {
+                    'pk': contact.pk,
                     'first_name': contact.created_by.first_name,
                     'last_name': contact.created_by.last_name,
                     'email': contact.created_by.email,
-                    'phone_number': contact.created_by.phone_number 
-                },
-                'id': contact.pk,
-                'relation': contact.relation,
-                'status': contact.status,
-            }
-            contacts_data.append(contact_info)
-           
-        if len(contacts_data) < 1:
-            return Response({'message': 'Zero contacts found'}, status=status.HTTP_200_OK)
-        return Response({'dependant_list': contacts_data}, status=status.HTTP_200_OK)
+                    'phone_number': contact.created_by.phone_number ,
+                    'relation': contact.relation,
+                    'status': contact.status,
+                }
+                contacts_data.append(contact_info)
+        
+            return Response({'results': contacts_data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'message': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 class ApproveDependantView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        key = request.data
+        key = request.data.get('id')
         try:
             contact = Contacts.objects.get(pk=key)
             contact.status = 'approved'
@@ -399,7 +401,7 @@ class RejectDependantView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        key = request.data
+        key = request.data.get('id')
         try:
             contact = Contacts.objects.get(pk=key)
             contact.status = 'rejected'
