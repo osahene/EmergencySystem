@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     
     'account',
+    'social_auth'
 ]
 
 SITE_ID=1
@@ -141,11 +142,11 @@ WSGI_APPLICATION = 'EmergencyBackend.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': dj_database_url.parse(os.getenv('PGCONNECT')),
-    #     {
-    #     'ENGINE': 'django.db.backends.sqlite3',
-    #     'NAME': BASE_DIR / 'db.sqlite3',
-    # }
+    # 'default': dj_database_url.parse(os.getenv('PGCONNECT')),
+      'default' :  {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
 }
 
 
@@ -309,6 +310,7 @@ PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY")
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+SOCIAL_AUTH_PASSWORD = os.getenv('SOCIAL_AUTH_PASSWORD')
 
 
 OTP_EXPIRATION_TIME = 300
