@@ -12,7 +12,13 @@ class GoogleOauthSignInview(GenericAPIView):
         serializer=self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
         data=serializer.validated_data
-        return Response(data, status=status.HTTP_200_OK) 
+        if not data.get('is_phone_verified', False):
+            return Response(
+                {'message': 'Phone number not verified', 'redirect_url': '/auth/phone-number', 'data': data['tokens']}, 
+                status=status.HTTP_307_TEMPORARY_REDIRECT
+            )
+        
+        return Response(data, status=status.HTTP_200_OK)
         
 
 

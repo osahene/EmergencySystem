@@ -64,14 +64,14 @@ def register_social_user(provider, email, first_name, last_name, phone_number):
         existing_user = user_model.objects.get(email=email)
         if provider == existing_user.auth_provider:
             authenticated_user = authenticate(email=email, password=settings.SOCIAL_AUTH_PASSWORD)
-            print('auth user', authenticated_user)
             if authenticated_user:
                 return {
-                    'phone_number': authenticated_user.phone_number,
+                    'phone_number': existing_user.phone_number,
                     'email': authenticated_user.email,
-                    'first_name': authenticated_user.first_name,
-                    'last_name': authenticated_user.last_name,
-                    'tokens': authenticated_user.tokens()
+                    'first_name': existing_user.first_name,
+                    'last_name': existing_user.last_name,
+                    'tokens': authenticated_user.tokens(),
+                    'is_phone_verified': existing_user.is_phone_verified
                 }
             else:
                 raise AuthenticationFailed('Authentication failed. Please try again.')
@@ -86,17 +86,18 @@ def register_social_user(provider, email, first_name, last_name, phone_number):
             first_name=first_name,
             last_name=last_name,
             auth_provider=provider,
-            is_verified=True
+            is_verified=True,
+            is_phone_verified=False
         )
         new_user.set_password(settings.SOCIAL_AUTH_PASSWORD)
         new_user.save()
 
         authenticated_user = authenticate(email=email, password=settings.SOCIAL_AUTH_PASSWORD)
-        tokens = authenticated_user.tokens()
+        
         return {
             'email': authenticated_user.email,
-            'first_name': authenticated_user.first_name,
-            'last_name': authenticated_user.last_name,
-            "access_token": str(tokens.get('access')),
-            "refresh_token": str(tokens.get('refresh'))
+            'first_name': new_user.first_name,
+            'last_name': new_user.last_name,
+            'tokens' : authenticated_user.tokens(),
+            'is_phone_verified': new_user.is_phone_verified
         }
